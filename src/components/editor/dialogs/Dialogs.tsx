@@ -277,6 +277,7 @@ const SHORTCUTS: [string, string[]][] = [
   ["Open file", ["Ctrl O"]],
   ["Zoom", ["Ctrl Wheel", "Ctrl +", "Ctrl −"]],
   ["Fit to screen", ["Ctrl 0"]],
+  ["Fullscreen workspace", ["F"]],
   ["Disable snapping while dragging", ["Alt"]],
   ["Lock axis while dragging", ["Shift"]],
 ];

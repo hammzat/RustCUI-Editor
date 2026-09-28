@@ -101,7 +101,7 @@ function textLayer(c: CuiComponent, countdown?: CuiComponent): ReactNode {
   const style: CSSProperties = {
     ...alignStyle(String(c.props.align)),
     ...FONT_STYLE[String(c.props.font)],
-    fontSize: Number(c.props.fontSize),
+    fontSize: Math.round(Number(c.props.fontSize)), // Rust rounds to an int
     color: rgba(c.props.color as Color),
     lineHeight: 1.15,
     whiteSpace: "pre-wrap",

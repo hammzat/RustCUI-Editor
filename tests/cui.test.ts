@@ -138,3 +138,13 @@ describe("c# export", () => {
     expect(cs.split("{").length).toBe(cs.split("}").length);
   });
 });
+
+describe("design resolution", () => {
+  it("rounds fractional font sizes (entered in 1080p) on export", () => {
+    const p = withButton();
+    const text = Object.values(p.nodes)[1].components[0];
+    text.props.fontSize = 25 / 1.5; // 25px typed at 1080p
+    expect(exportJson(p)[1].components[0]).toMatchObject({ fontSize: 17 });
+    expect(exportCSharp(p)).toContain("FontSize = 17");
+  });
+});

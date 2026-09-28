@@ -4,14 +4,20 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { component, createPreset, shopTemplate, type PresetKind } from "@/lib/cui/factory";
-import { fitWithAnchors, fitWithOffsets, layoutProject, screenBox, type Box } from "@/lib/cui/geometry";
+import { fitWithAnchors, fitWithOffsets, layoutProject, REFERENCE_HEIGHT, screenBox, type Box } from "@/lib/cui/geometry";
 import type { ComponentType, CuiNode, FieldValue, Project, RectTransform } from "@/lib/cui/types";
 import { uid } from "@/lib/uid";
 
 export type DragMode = "offsets" | "anchors";
 
+/** Resolutions you can design in; values are converted to Rust's 720p space. */
+export const DESIGN_HEIGHTS = [720, 1080, 1440] as const;
+export type DesignHeight = (typeof DESIGN_HEIGHTS)[number];
+
 export interface ViewState {
   aspect: number;
+  /** Pixel space shown in the UI. Model and export always use the 720p reference. */
+  designHeight: DesignHeight;
   /** null = fit to viewport */
   zoom: number | null;
   grid: boolean;
@@ -67,6 +73,7 @@ const COALESCE_MS = 1000;
 
 export const DEFAULT_VIEW: ViewState = {
   aspect: 16 / 9,
+  designHeight: 1080,
   zoom: null,
   grid: false,
   snap: true,
@@ -384,6 +391,13 @@ export const useEditor = create<EditorState>()(
     },
   ),
 );
+
+/** Multiplier from Rust's 720p units to the design resolution (1.5 for 1080p). */
+export function designScale(view: Pick<ViewState, "designHeight">): number {
+  return view.designHeight / REFERENCE_HEIGHT;
+}
+
+export const useDesignScale = () => useEditor((s) => designScale(s.view));
 
 /** World-space box of a node for the current aspect ratio. */
 export function nodeBox(project: Project, aspect: number, id: string): Box | undefined {

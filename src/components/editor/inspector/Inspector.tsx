@@ -29,7 +29,7 @@ import {
 } from "@/lib/cui/geometry";
 import { COMPONENT_ORDER, COMPONENT_SPECS, type FieldSpec } from "@/lib/cui/specs";
 import { LAYERS, type Color, type CuiNode, type FieldValue, type Vec2 } from "@/lib/cui/types";
-import { useEditor } from "@/store/editor";
+import { useDesignScale, useEditor } from "@/store/editor";
 import { Button, MenuItem, Popover, Switch } from "@/components/ui/primitives";
 import { ColorInput, NumberInput, Row, Select, TextInput, Vec2Input } from "./fields";
 import { componentIcon } from "../icons";
@@ -79,6 +79,10 @@ function NodeInspector({ node }: { node: CuiNode }) {
   const project = useEditor((s) => s.project);
   const aspect = useEditor((s) => s.view.aspect);
   const s = useEditor.getState();
+  const k = useDesignScale();
+  const designH = useEditor((st) => st.view.designHeight);
+  const up = (v: Vec2): Vec2 => [v[0] * k, v[1] * k];
+  const down = (v: Vec2): Vec2 => [v[0] / k, v[1] / k];
   const nameTaken = Object.values(project.nodes).some((n) => n.id !== node.id && n.name === node.name);
 
   const screen = screenBox(aspect);
@@ -139,30 +143,30 @@ function NodeInspector({ node }: { node: CuiNode }) {
                 <NumberInput
                   prefix="X"
                   title="Left, px from parent's left edge"
-                  value={box.x - parentBox.x}
+                  value={(box.x - parentBox.x) * k}
                   precision={1}
-                  onChange={(x) => s.setBox(node.id, { ...box, x: parentBox.x + x })}
+                  onChange={(x) => s.setBox(node.id, { ...box, x: parentBox.x + x / k })}
                 />
                 <NumberInput
                   prefix="Y"
                   title="Bottom, px from parent's bottom edge"
-                  value={box.y - parentBox.y}
+                  value={(box.y - parentBox.y) * k}
                   precision={1}
-                  onChange={(y) => s.setBox(node.id, { ...box, y: parentBox.y + y })}
+                  onChange={(y) => s.setBox(node.id, { ...box, y: parentBox.y + y / k })}
                 />
                 <NumberInput
                   prefix="W"
-                  value={box.w}
+                  value={box.w * k}
                   precision={1}
                   min={0}
-                  onChange={(w) => s.setBox(node.id, { ...box, w })}
+                  onChange={(w) => s.setBox(node.id, { ...box, w: w / k })}
                 />
                 <NumberInput
                   prefix="H"
-                  value={box.h}
+                  value={box.h * k}
                   precision={1}
                   min={0}
-                  onChange={(h) => s.setBox(node.id, { ...box, h })}
+                  onChange={(h) => s.setBox(node.id, { ...box, h: h / k })}
                 />
               </div>
               <div className="flex gap-1">
@@ -194,12 +198,20 @@ function NodeInspector({ node }: { node: CuiNode }) {
             <Row label="Anchor max">
               <Vec2Input value={rect.anchorMax} step={0.01} precision={4} onChange={(v) => s.setRect(node.id, { ...rect, anchorMax: v })} />
             </Row>
-            <Row label="Offset min">
-              <Vec2Input value={rect.offsetMin} precision={2} onChange={(v) => s.setRect(node.id, { ...rect, offsetMin: v })} />
+            <Row label="Offset min" hint={`Exported (720p): ${rect.offsetMin.join(" ")}`}>
+              <Vec2Input value={up(rect.offsetMin)} precision={2} onChange={(v) => s.setRect(node.id, { ...rect, offsetMin: down(v) })} />
             </Row>
-            <Row label="Offset max">
-              <Vec2Input value={rect.offsetMax} precision={2} onChange={(v) => s.setRect(node.id, { ...rect, offsetMax: v })} />
+            <Row label="Offset max" hint={`Exported (720p): ${rect.offsetMax.join(" ")}`}>
+              <Vec2Input value={up(rect.offsetMax)} precision={2} onChange={(v) => s.setRect(node.id, { ...rect, offsetMax: down(v) })} />
             </Row>
+            {k !== 1 && (
+              <p className="pl-[92px] text-[10.5px] leading-snug text-faint">
+                Pixels shown in <span className="text-muted">{designH}p</span>, exported in 720p (÷{+k.toFixed(3)}):{" "}
+                <span className="font-mono text-muted">
+                  {rect.offsetMin.join(" ")} / {rect.offsetMax.join(" ")}
+                </span>
+              </p>
+            )}
           </div>
         </Section>
 
@@ -242,6 +254,7 @@ function NodeInspector({ node }: { node: CuiNode }) {
               {spec.fields.map((f) => (
                 <FieldEditor
                   key={f.key}
+                  scale={f.scaled ? k : 1}
                   field={f}
                   value={c.props[f.key] ?? f.default}
                   onChange={(v) => s.setField(node.id, i, f.key, v)}
@@ -324,8 +337,20 @@ function NodeInspector({ node }: { node: CuiNode }) {
   );
 }
 
-function FieldEditor({ field: f, value, onChange }: { field: FieldSpec; value: FieldValue; onChange: (v: FieldValue) => void }) {
+function FieldEditor({
+  field: f,
+  value,
+  onChange,
+  scale = 1,
+}: {
+  field: FieldSpec;
+  value: FieldValue;
+  onChange: (v: FieldValue) => void;
+  scale?: number;
+}) {
   let input: ReactNode;
+  const exported =
+    scale !== 1 && f.kind === "int" ? `Exported (720p): ${Math.round(Number(value))}` : scale !== 1 && f.kind === "vec2" ? `Exported (720p): ${(value as Vec2).join(" ")}` : undefined;
   switch (f.kind) {
     case "text":
       input = (
@@ -340,7 +365,16 @@ function FieldEditor({ field: f, value, onChange }: { field: FieldSpec; value: F
       );
       break;
     case "int":
-      input = <NumberInput value={Number(value)} min={f.min} max={f.max} precision={0} onChange={onChange} />;
+      input = (
+        <NumberInput
+          value={Number(value) * scale}
+          min={f.min}
+          max={f.max}
+          precision={0}
+          title={exported}
+          onChange={(v) => onChange(scale === 1 ? v : Math.round((v / scale) * 1000) / 1000)}
+        />
+      );
       break;
     case "float":
       input = <NumberInput value={Number(value)} min={f.min} max={f.max} step={f.step ?? 0.1} onChange={onChange} />;
@@ -352,14 +386,19 @@ function FieldEditor({ field: f, value, onChange }: { field: FieldSpec; value: F
       input = <ColorInput value={value as Color} onChange={onChange} />;
       break;
     case "vec2":
-      input = <Vec2Input value={value as Vec2} onChange={onChange} />;
+      input = (
+        <Vec2Input
+          value={[(value as Vec2)[0] * scale, (value as Vec2)[1] * scale]}
+          onChange={(v) => onChange([v[0] / scale, v[1] / scale])}
+        />
+      );
       break;
     case "enum":
       input = f.key === "align" ? <AlignPicker value={String(value)} onChange={onChange} /> : <Select value={String(value)} options={f.options} onChange={onChange} />;
       break;
   }
   return (
-    <Row label={f.label} hint={f.hint} top={f.kind === "color" || (f.kind === "text" && f.multiline)}>
+    <Row label={f.label} hint={exported ?? f.hint} top={f.kind === "color" || (f.kind === "text" && f.multiline)}>
       {input}
     </Row>
   );

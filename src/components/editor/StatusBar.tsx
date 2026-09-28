@@ -2,7 +2,7 @@
 
 import { Cloud, MousePointer2 } from "lucide-react";
 import { screenBox } from "@/lib/cui/geometry";
-import { useEditor } from "@/store/editor";
+import { designScale, useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
 export function StatusBar() {
@@ -12,6 +12,7 @@ export function StatusBar() {
   const count = useEditor((s) => Object.keys(s.project.nodes).length);
   const layer = useEditor((s) => s.project.layer);
   const screen = screenBox(aspect);
+  const k = useEditor((s) => designScale(s.view));
 
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-line bg-panel px-3 font-mono text-[10.5px] text-faint">
@@ -20,7 +21,7 @@ export function StatusBar() {
         {cursor ? (
           <>
             <span className="text-muted tabular-nums">
-              {Math.round(cursor.x)}, {Math.round(cursor.y)}
+              {Math.round(cursor.x * k)}, {Math.round(cursor.y * k)}
             </span>
             <span className="tabular-nums">
               ({(cursor.x / screen.w).toFixed(3)} {(cursor.y / screen.h).toFixed(3)})
@@ -31,7 +32,8 @@ export function StatusBar() {
         )}
       </span>
       <span>
-        screen {screen.w}×{screen.h}
+        design <span className="text-muted">{Math.round(screen.w * k)}×{Math.round(screen.h * k)}</span> → export{" "}
+        {screen.w}×{screen.h}
       </span>
       <span>layer {layer}</span>
       <span>{count} elements</span>

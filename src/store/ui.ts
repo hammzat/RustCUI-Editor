@@ -10,6 +10,9 @@ interface UiState {
   zoom: number;
   toast: { id: number; text: string } | null;
   dialog: DialogKind;
+  /** Workspace-only fullscreen: canvas fills the monitor 1:1 like in game. */
+  fullscreen: boolean;
+  setFullscreen(on: boolean): void;
   setCursor(c: { x: number; y: number } | null): void;
   notify(text: string): void;
   open(d: DialogKind): void;
@@ -22,6 +25,18 @@ export const useUi = create<UiState>()((set) => ({
   zoom: 1,
   toast: null,
   dialog: null,
+  fullscreen: false,
+  setFullscreen: (on) => {
+    set({ fullscreen: on });
+    // Real browser fullscreen when allowed; the CSS overlay covers the rest (e.g. inside iframes).
+    try {
+      if (on && !document.fullscreenElement) {
+        document.getElementById("workspace")?.requestFullscreen?.().catch(() => {});
+      } else if (!on && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch {}
+  },
   setCursor: (cursor) => set({ cursor }),
   notify: (text) => {
     clearTimeout(toastTimer);

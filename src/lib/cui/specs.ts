@@ -34,6 +34,8 @@ export type FieldSpec = FieldKind & {
   default: FieldValue;
   /** Always written to JSON even if equal to the default. */
   required?: boolean;
+  /** Pixel value in 720p reference space — shown in the design resolution in the UI. */
+  scaled?: boolean;
   hint?: string;
 };
 
@@ -138,8 +140,9 @@ const fontSize: FieldSpec = {
   cs: "FontSize",
   kind: "int",
   min: 1,
-  max: 200,
+  max: 300,
   default: 14,
+  scaled: true,
 };
 const align: FieldSpec = {
   key: "align",
@@ -259,7 +262,7 @@ export const COMPONENT_SPECS: Record<ComponentType, ComponentSpec> = {
     description: "Outline effect around the graphic on this element.",
     fields: [
       color("color", [0, 0, 0, 1]),
-      { key: "distance", label: "Distance", json: "distance", cs: "Distance", kind: "vec2", default: [1, -1], required: true },
+      { key: "distance", label: "Distance", json: "distance", cs: "Distance", kind: "vec2", default: [1, -1], required: true, scaled: true },
       {
         key: "useGraphicAlpha",
         label: "Use graphic alpha",

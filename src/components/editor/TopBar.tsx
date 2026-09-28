@@ -11,6 +11,7 @@ import {
   ImagePlus,
   Keyboard,
   Magnet,
+  Maximize,
   Maximize2,
   Minus,
   MonitorSmartphone,
@@ -24,7 +25,7 @@ import {
 import { useRef } from "react";
 import { exportJson, importJson } from "@/lib/cui/serialize";
 import type { Project } from "@/lib/cui/types";
-import { useEditor } from "@/store/editor";
+import { DESIGN_HEIGHTS, useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 import { Button, MenuItem, Popover, Segmented, Switch } from "@/components/ui/primitives";
 import { Logo } from "./Logo";
@@ -204,12 +205,27 @@ export function TopBar() {
         trigger={({ toggle, open: isOpen }) => (
           <Button variant="ghost" size="sm" onClick={toggle} active={isOpen} title="Viewport">
             <MonitorSmartphone className="size-4" />
-            <span className="hidden font-mono text-xs md:inline">{ASPECTS.find((a) => Math.abs(a.value - view.aspect) < 0.01)?.label}</span>
+            <span className="hidden font-mono text-xs md:inline">
+              {view.designHeight}p · {ASPECTS.find((a) => Math.abs(a.value - view.aspect) < 0.01)?.label}
+            </span>
           </Button>
         )}
       >
         {() => (
           <div className="space-y-3 p-1">
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold tracking-wider text-faint uppercase">Work resolution</p>
+              <Segmented
+                className="w-full [&>button]:flex-1 [&>button]:justify-center"
+                value={String(view.designHeight)}
+                onChange={(v) => s.setView({ designHeight: Number(v) as (typeof DESIGN_HEIGHTS)[number] })}
+                options={DESIGN_HEIGHTS.map((h) => ({ value: String(h), label: `${h}p` }))}
+              />
+              <p className="mt-1.5 text-[11px] leading-snug text-faint">
+                Sizes, offsets and fonts are shown in {Math.round(view.designHeight * view.aspect)}×{view.designHeight} and
+                exported in Rust&apos;s {Math.round(720 * view.aspect)}×720 space.
+              </p>
+            </div>
             <div>
               <p className="mb-1.5 text-[11px] font-semibold tracking-wider text-faint uppercase">Aspect ratio</p>
               <div className="grid grid-cols-4 gap-1">
@@ -322,6 +338,10 @@ export function TopBar() {
           <Maximize2 className="size-3.5" />
         </Button>
       </div>
+
+      <Button variant="ghost" size="icon" title="Fullscreen workspace (F)" onClick={() => useUi.getState().setFullscreen(true)}>
+        <Maximize className="size-4" />
+      </Button>
 
       <div className="mx-1 h-5 w-px bg-line" />
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { layoutProject, screenBox } from "@/lib/cui/geometry";
-import { useEditor } from "@/store/editor";
+import { designScale, useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 import { Canvas } from "./Canvas";
 import { Dialogs } from "./dialogs/Dialogs";
@@ -43,6 +43,16 @@ function useShortcuts() {
       }
       if (isTyping(e) || ui.dialog) return;
 
+      if (key === "f" && !mod) {
+        e.preventDefault();
+        ui.setFullscreen(!ui.fullscreen);
+        return;
+      }
+      if (key === "escape" && ui.fullscreen && !s.selectedId) {
+        ui.setFullscreen(false);
+        return;
+      }
+
       const sel = s.selectedId && s.project.nodes[s.selectedId] ? s.selectedId : null;
 
       if (mod && key === "z") {
@@ -81,7 +91,8 @@ function useShortcuts() {
         ui.open("shortcuts");
       } else if (sel && key.startsWith("arrow")) {
         e.preventDefault();
-        const step = e.shiftKey ? 10 : 1;
+        // 1 / 10 design pixels (e.g. 1080p), converted to the 720p model.
+        const step = (e.shiftKey ? 10 : 1) / designScale(s.view);
         const box = layoutProject(s.project, screenBox(s.view.aspect)).get(sel)!;
         const dx = key === "arrowleft" ? -step : key === "arrowright" ? step : 0;
         const dy = key === "arrowup" ? step : key === "arrowdown" ? -step : 0;
@@ -90,6 +101,17 @@ function useShortcuts() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
+
+function useFullscreenSync() {
+  useEffect(() => {
+    // Leaving browser fullscreen (Esc, F11…) also leaves workspace fullscreen.
+    const onChange = () => {
+      if (!document.fullscreenElement && useUi.getState().fullscreen) useUi.setState({ fullscreen: false });
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 }
 
@@ -108,6 +130,7 @@ function Toaster() {
 
 export function EditorApp() {
   useShortcuts();
+  useFullscreenSync();
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
       <TopBar />

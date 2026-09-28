@@ -4,11 +4,13 @@ import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { layoutProject, screenBox, toCss, walkOrder, type Box } from "@/lib/cui/geometry";
 import type { Project } from "@/lib/cui/types";
-import { useEditor } from "@/store/editor";
+import { designScale, useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 import { uid } from "@/lib/uid";
 import { NodeView } from "./render/NodeView";
 import { HudMock } from "./HudMock";
+import { FullscreenBar } from "./FullscreenBar";
+import { Maximize } from "lucide-react";
 
 export const BACKGROUNDS: Record<string, { label: string; css?: string; className?: string }> = {
   dusk: {
@@ -101,6 +103,9 @@ export function Canvas() {
   const setBox = useEditor((s) => s.setBox);
   const setView = useEditor((s) => s.setView);
   const setCursor = useUi((s) => s.setCursor);
+  const fullscreen = useUi((s) => s.fullscreen);
+  const k = designScale(view);
+  const pad = fullscreen ? 0 : PAD;
 
   const screen = useMemo(() => screenBox(view.aspect), [view.aspect]);
   const layout = useMemo(() => layoutProject(project, screen), [project, screen]);
@@ -121,8 +126,9 @@ export function Canvas() {
     return () => ro.disconnect();
   }, []);
 
-  const fitZoom = vp.w ? Math.max(0.1, Math.min((vp.w - PAD * 2) / screen.w, (vp.h - PAD * 2) / screen.h)) : 1;
-  const zoom = view.zoom ?? fitZoom;
+  const fitZoom = vp.w ? Math.max(0.1, Math.min((vp.w - pad * 2) / screen.w, (vp.h - pad * 2) / screen.h)) : 1;
+  // Fullscreen always fits the monitor so the layout is seen exactly as in game.
+  const zoom = fullscreen ? fitZoom : (view.zoom ?? fitZoom);
   const zoomRef = useRef(zoom);
   useEffect(() => {
     zoomRef.current = zoom;
@@ -185,7 +191,10 @@ export function Canvas() {
       const z = zoomRef.current;
       const dx = sx / z;
       const dy = -sy / z;
-      const { snap, grid, gridSize } = useEditor.getState().view;
+      const v = useEditor.getState().view;
+      const { snap, grid } = v;
+      // Grid size is set in design pixels; snapping happens in 720p model space.
+      const gridSize = v.gridSize / designScale(v);
       const doSnap = snap && !e.altKey;
       const threshold = 6 / z;
       const snapGrid = (v: number) => (grid ? Math.round(v / gridSize) * gridSize : v);
@@ -286,18 +295,27 @@ export function Canvas() {
   const selParentBox = selected ? (selected.parentId ? layout.get(selected.parentId) : screen) : undefined;
   const hoverBox = hoveredId && hoveredId !== selectedId ? layout.get(hoveredId) : undefined;
 
+  const gridStep = view.gridSize / k;
+
   return (
     <div
+      id="workspace"
+      className={clsx(
+        "group/ws relative flex min-h-0 min-w-0 flex-1 flex-col",
+        fullscreen && "fixed inset-0 z-90 bg-black",
+      )}
+    >
+    <div
       ref={viewportRef}
-      className="dots relative min-h-0 min-w-0 flex-1 overflow-auto"
+      className={clsx("relative min-h-0 min-w-0 flex-1", fullscreen ? "overflow-hidden bg-black" : "dots overflow-auto")}
       onPointerDown={(e) => e.button === 0 && select(null)}
     >
       <div
         className="grid min-h-full min-w-full place-items-center"
-        style={{ width: screen.w * zoom + PAD * 2, height: screen.h * zoom + PAD * 2 }}
+        style={{ width: screen.w * zoom + pad * 2, height: screen.h * zoom + pad * 2 }}
       >
         <div
-          className="relative shadow-[0_30px_80px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/10"
+          className={clsx("relative", !fullscreen && "shadow-[0_30px_80px_-20px_rgba(0,0,0,.8)] ring-1 ring-white/10")}
           style={{ width: screen.w * zoom, height: screen.h * zoom }}
         >
           <div
@@ -343,8 +361,8 @@ export function Canvas() {
                 style={{
                   backgroundImage:
                     "linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)",
-                  backgroundSize: `${view.gridSize}px ${view.gridSize}px`,
-                  backgroundPosition: `0 ${screen.h % view.gridSize}px`,
+                  backgroundSize: `${gridStep}px ${gridStep}px`,
+                  backgroundPosition: `0 ${screen.h % gridStep}px`,
                 }}
               />
             )}
@@ -365,7 +383,7 @@ export function Canvas() {
                       {selected.name}
                     </span>
                     <span className="rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] text-white/80">
-                      {Math.round(selBox.w)}×{Math.round(selBox.h)}
+                      {Math.round(selBox.w * k)}×{Math.round(selBox.h * k)}
                     </span>
                   </div>
                   {!selected.locked &&
@@ -410,6 +428,19 @@ export function Canvas() {
           </div>
         </div>
       </div>
+    </div>
+    {fullscreen ? (
+      <FullscreenBar selBox={selBox} selName={selected?.name} screen={screen} scale={k} />
+    ) : (
+      <button
+        type="button"
+        onClick={() => useUi.getState().setFullscreen(true)}
+        title="Fullscreen workspace (F)"
+        className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-lg border border-line-strong bg-panel-2/90 px-2.5 py-1.5 text-[12px] text-muted opacity-70 shadow-lg backdrop-blur transition hover:text-fg hover:opacity-100"
+      >
+        <Maximize className="size-3.5" /> Fullscreen
+      </button>
+    )}
     </div>
   );
 }
