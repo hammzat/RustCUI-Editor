@@ -1,5 +1,7 @@
 "use client";
 
+import clsx from "clsx";
+import { SlidersHorizontal, Sparkles } from "lucide-react";
 import { useEffect } from "react";
 import { layoutProject, screenBox } from "@/lib/cui/geometry";
 import { designScale, useEditor } from "@/store/editor";
@@ -7,6 +9,7 @@ import { useUi } from "@/store/ui";
 import { Canvas } from "./Canvas";
 import { Dialogs } from "./dialogs/Dialogs";
 import { Inspector } from "./inspector/Inspector";
+import { AiPanel } from "./ai/AiPanel";
 import { LayersPanel } from "./LayersPanel";
 import { StatusBar } from "./StatusBar";
 import { download, PROJECT_FORMAT, slug, TopBar } from "./TopBar";
@@ -34,6 +37,12 @@ function useShortcuts() {
       if (mod && key === "e") {
         e.preventDefault();
         ui.open("export");
+        return;
+      }
+      if (mod && key === "k") {
+        e.preventDefault();
+        ui.setRightTab("ai");
+        setTimeout(() => document.querySelector<HTMLTextAreaElement>("aside textarea[placeholder^='Describe']")?.focus(), 0);
         return;
       }
       if (mod && key === "o") {
@@ -128,6 +137,44 @@ function Toaster() {
   );
 }
 
+function RightPanel() {
+  const tab = useUi((s) => s.rightTab);
+  const setTab = useUi((s) => s.setRightTab);
+  const tabs = [
+    { id: "inspector" as const, label: "Inspector", icon: SlidersHorizontal },
+    { id: "ai" as const, label: "AI", icon: Sparkles },
+  ];
+  return (
+    <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
+      <div className="flex h-10 shrink-0 items-end gap-1 border-b border-line px-2">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            title={t.id === "ai" ? "AI assistant (Ctrl+K)" : undefined}
+            className={clsx(
+              "relative flex h-9 items-center gap-1.5 px-2.5 text-[12px] font-medium transition",
+              tab === t.id ? "text-fg" : "text-muted hover:text-fg",
+            )}
+          >
+            <t.icon className={clsx("size-3.5", t.id === "ai" && tab === t.id && "text-rust-hi")} />
+            {t.label}
+            {tab === t.id && <span className="absolute inset-x-1.5 -bottom-px h-0.5 rounded-full bg-rust-hi" />}
+          </button>
+        ))}
+      </div>
+      {/* Keep the chat mounted so an in-flight request and its scroll position survive tab switches. */}
+      <div className={clsx("min-h-0 flex-1 flex-col", tab === "inspector" ? "flex" : "hidden")}>
+        <Inspector />
+      </div>
+      <div className={clsx("min-h-0 flex-1 flex-col", tab === "ai" ? "flex" : "hidden")}>
+        <AiPanel />
+      </div>
+    </aside>
+  );
+}
+
 export function EditorApp() {
   useShortcuts();
   useFullscreenSync();
@@ -140,9 +187,7 @@ export function EditorApp() {
           <Canvas />
           <StatusBar />
         </main>
-        <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
-          <Inspector />
-        </aside>
+        <RightPanel />
       </div>
       <Dialogs />
       <Toaster />

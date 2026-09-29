@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rustcui-editor": {
+      "command": "node",
+      "args": ["mcp/rustcui-mcp.mjs"]
+    }
+  }
+}

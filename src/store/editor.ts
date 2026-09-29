@@ -48,6 +48,8 @@ interface EditorState {
   redo(): void;
 
   loadProject(p: Project): void;
+  /** Replace the document as one undo step, keeping the selection when possible. */
+  applyProject(p: Project): void;
   setProjectMeta(patch: Partial<Pick<Project, "name" | "layer">>): void;
 
   addPreset(kind: PresetKind, parentId?: string | null): void;
@@ -236,6 +238,11 @@ export const useEditor = create<EditorState>()(
             s.selectedId = null;
           });
         },
+        applyProject: (p) =>
+          change((_, s) => {
+            s.project = p;
+            if (s.selectedId && !p.nodes[s.selectedId]) s.selectedId = null;
+          }),
         setProjectMeta: (patch) => change((p) => void Object.assign(p, patch), "meta"),
 
         addPreset: (kind, parentId) => {

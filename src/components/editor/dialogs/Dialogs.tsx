@@ -278,6 +278,7 @@ const SHORTCUTS: [string, string[]][] = [
   ["Zoom", ["Ctrl Wheel", "Ctrl +", "Ctrl −"]],
   ["Fit to screen", ["Ctrl 0"]],
   ["Fullscreen workspace", ["F"]],
+  ["AI assistant", ["Ctrl K"]],
   ["Disable snapping while dragging", ["Alt"]],
   ["Lock axis while dragging", ["Shift"]],
 ];

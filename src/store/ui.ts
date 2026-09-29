@@ -12,6 +12,8 @@ interface UiState {
   dialog: DialogKind;
   /** Workspace-only fullscreen: canvas fills the monitor 1:1 like in game. */
   fullscreen: boolean;
+  rightTab: "inspector" | "ai";
+  setRightTab(tab: "inspector" | "ai"): void;
   setFullscreen(on: boolean): void;
   setCursor(c: { x: number; y: number } | null): void;
   notify(text: string): void;
@@ -26,6 +28,8 @@ export const useUi = create<UiState>()((set) => ({
   toast: null,
   dialog: null,
   fullscreen: false,
+  rightTab: "inspector",
+  setRightTab: (rightTab) => set({ rightTab }),
   setFullscreen: (on) => {
     set({ fullscreen: on });
     // Real browser fullscreen when allowed; the CSS overlay covers the rest (e.g. inside iframes).

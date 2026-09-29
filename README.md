@@ -14,9 +14,39 @@ Visual editor for **Rust CUI** (Community UI): build plugin interfaces in the br
 - **Import** of existing CUI JSON, so you can edit UIs from existing plugins.
 - **Undo/redo, keyboard shortcuts** (press `?` in the editor), autosave to `localStorage`, and `.rcui.json` project files.
 
+## AI mode
+
+**In-app assistant (AI tab, `Ctrl+K`).** Chat with Claude, paste a mockup screenshot, and watch the UI get built on the
+canvas. Paste your Anthropic API key once. It is stored only in your browser and requests go directly from the browser to
+`api.anthropic.com`. Claude edits the document through the same tools as the MCP server, and every change is a normal
+undo step. You can choose the model (Opus 5.5 by default, Sonnet 5.5 or Haiku 4.5) and the effort level.
+
+**MCP server.** Claude Code, Claude Desktop, Cursor and other MCP clients can drive the editor that is open in your
+browser:
+
+```bash
+# Claude Code: inside this repo it's picked up automatically from .mcp.json, otherwise:
+claude mcp add rustcui-editor -- node /path/to/RustCUI-Editor/mcp/rustcui-mcp.mjs
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{ "mcpServers": { "rustcui-editor": { "command": "node", "args": ["/path/to/RustCUI-Editor/mcp/rustcui-mcp.mjs"] } } }
+```
+
+Then open the editor and turn on **AI → MCP bridge**. The server forwards tool calls over a local WebSocket
+(`ws://127.0.0.1:7331`, which you can change with `RUSTCUI_BRIDGE_PORT`) to the editor tab. It only accepts connections
+from localhost pages and from the origins listed in `RUSTCUI_ALLOWED_ORIGINS` (comma-separated; default
+`https://hammzat.github.io`).
+
+Tools: `get_project`, `add_elements`, `update_element`, `delete_elements`, `move_element`, `replace_project`,
+`select_element`, `export_code`. They accept native `CuiHelper.AddUi` JSON. Tool definitions live in
+`src/lib/ai/tools.json`, and the in-app assistant and the MCP server share them.
+
 ## Stack
 
-Next.js 16 (App Router, static export) · React 19 · TypeScript · Tailwind CSS v4 · Zustand + Immer · Vitest.
+Next.js 16 (App Router, static export) · React 19 · TypeScript · Tailwind CSS v4 · Zustand + Immer · Anthropic SDK · MCP SDK · Vitest.
 
 ## Development
 
@@ -44,6 +74,9 @@ src/lib/cui/             Framework-free core
   serialize.ts           JSON export/import + validation
   csharp.ts              Oxide / Carbon C# generator
   factory.ts             Element presets and templates
+  ops.ts                 Name-based edit operations used by AI tools
+src/lib/ai/              Tool definitions, executor, Claude agent loop, MCP bridge client
+mcp/rustcui-mcp.mjs      MCP stdio server ↔ WebSocket bridge to the editor
 src/store/               Zustand stores (document + history, transient UI)
 src/components/editor/   Canvas, element tree, inspector, dialogs
 tests/                   Vitest suites

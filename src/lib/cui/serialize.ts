@@ -148,7 +148,7 @@ export function validate(project: Project): Problem[] {
 
 // ---------------------------------------------------------------- import
 
-function fieldFromJson(f: FieldSpec, raw: unknown): FieldValue {
+export function fieldFromJson(f: FieldSpec, raw: unknown): FieldValue {
   switch (f.kind) {
     case "color":
       return parseNumbers(raw, 4, f.default as number[]) as Color;
@@ -173,6 +173,8 @@ function fieldFromJson(f: FieldSpec, raw: unknown): FieldValue {
 export interface ImportResult {
   project: Project;
   warnings: string[];
+  /** Parent names of root nodes that are neither layers nor imported elements. */
+  externalParents: Record<string, string>;
 }
 
 export function blankRect(): RectTransform {
@@ -197,6 +199,7 @@ export function importJson(text: string, name = "Imported UI"): ImportResult {
   const byName = new Map<string, string>();
   const rootIds: string[] = [];
   let layer: Layer | null = null;
+  const externalParents: Record<string, string> = {};
 
   data.forEach((raw, index) => {
     if (!raw || typeof raw !== "object") {
@@ -253,6 +256,7 @@ export function importJson(text: string, name = "Imported UI"): ImportResult {
         if (layer && layer !== parent) warnings.push(`Mixed root layers; using "${layer}" for all`);
         layer ??= parent as Layer;
       } else {
+        externalParents[id] = parent;
         warnings.push(`"${node.name}": parent "${parent}" not found — placed at root`);
       }
     }
@@ -261,5 +265,5 @@ export function importJson(text: string, name = "Imported UI"): ImportResult {
     nodes[id] = node;
   });
 
-  return { project: { name, layer: layer ?? "Overlay", nodes, rootIds }, warnings };
+  return { project: { name, layer: layer ?? "Overlay", nodes, rootIds }, warnings, externalParents };
 }
