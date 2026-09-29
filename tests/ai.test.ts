@@ -24,17 +24,17 @@ function host(start: Project) {
   return { h, commits, get: () => project };
 }
 
-const run = (h: EditorHost, name: string, input: unknown) => JSON.parse(runTool(h, name, input));
+const run = async (h: EditorHost, name: string, input: unknown) => JSON.parse((await runTool(h, name, input)).text);
 
 describe("ai tools", () => {
-  it("defines every tool with a schema", () => {
+  it("defines every tool with a schema", async () => {
     expect(TOOL_DEFS.map((t) => t.name)).toContain("add_elements");
     for (const t of TOOL_DEFS) expect(t.input_schema.type).toBe("object");
   });
 
-  it("adds elements, including children of existing elements", () => {
+  it("adds elements, including children of existing elements", async () => {
     const t = host(blankProject());
-    run(t.h, "add_elements", {
+    await run(t.h, "add_elements", {
       elements: [
         {
           name: "Menu",
@@ -46,7 +46,7 @@ describe("ai tools", () => {
         },
       ],
     });
-    const r = run(t.h, "add_elements", {
+    const r = await run(t.h, "add_elements", {
       elements: [{ name: "Menu.Title", parent: "Menu", components: [{ type: "UnityEngine.UI.Text", text: "Hi", fontSize: 20 }] }],
     });
     expect(r.warnings).toEqual([]);
@@ -57,23 +57,23 @@ describe("ai tools", () => {
     expect(t.commits).toHaveLength(2);
   });
 
-  it("rejects duplicate names and unknown elements", () => {
+  it("rejects duplicate names and unknown elements", async () => {
     const t = host(shopTemplate());
-    expect(() => runTool(t.h, "add_elements", { elements: [{ name: "Shop", parent: "Overlay", components: [] }] })).toThrow(/already exist/);
-    expect(() => runTool(t.h, "update_element", { name: "Nope" })).toThrow(/not found/);
-    expect(() => runTool(t.h, "delete_elements", { names: "Shop" })).toThrow(/array/);
+    await expect(runTool(t.h, "add_elements", { elements: [{ name: "Shop", parent: "Overlay", components: [] }] })).rejects.toThrow(/already exist/);
+    await expect(runTool(t.h, "update_element", { name: "Nope" })).rejects.toThrow(/not found/);
+    await expect(runTool(t.h, "delete_elements", { names: "Shop" })).rejects.toThrow(/array/);
     expect(t.commits).toEqual([]);
   });
 
-  it("updates rect and merges components, renaming descendants", () => {
+  it("updates rect and merges components, renaming descendants", async () => {
     const t = host(shopTemplate());
-    run(t.h, "update_element", {
+    await run(t.h, "update_element", {
       name: "Shop.Header",
       rename: "Shop.Top",
       rect: { offsetmin: "0 -60" },
       components: [{ type: "UnityEngine.UI.Image", color: "0.2 0.4 0.8 1" }, { type: "UnityEngine.UI.Outline", distance: "2 -2" }],
     });
-    const d = run(t.h, "get_project", {});
+    const d = await run(t.h, "get_project", {});
     const top = d.elements.find((e: { name: string }) => e.name === "Shop.Top");
     expect(top.components[0]).toMatchObject({ type: "UnityEngine.UI.Image", color: "0.2 0.4 0.8 1" });
     expect(top.components[1]).toMatchObject({ type: "UnityEngine.UI.Outline", distance: "2 -2" });
@@ -81,15 +81,23 @@ describe("ai tools", () => {
     expect(d.elements.some((e: { name: string }) => e.name === "Shop.Top.Title" || e.name === "Shop.Title")).toBe(true);
   });
 
-  it("moves, deletes, replaces and exports", () => {
+  it("reports screenshots as unavailable without a DOM host", async () => {
+    const t = host(blankProject());
+    await expect(runTool(t.h, "get_screenshot", {})).rejects.toThrow(/not available/);
+    const img = { data: "AAAA", mediaType: "image/jpeg" as const };
+    const out = await runTool({ ...t.h, screenshot: async () => img }, "get_screenshot", { hideHud: true });
+    expect(out.image).toEqual(img);
+  });
+
+  it("moves, deletes, replaces and exports", async () => {
     const t = host(shopTemplate());
-    run(t.h, "move_element", { name: "Shop.Balance", parent: "Shop.Header", index: 0 });
-    expect(run(t.h, "get_project", {}).elements.find((e: { name: string }) => e.name === "Shop.Balance").parent).toBe("Shop.Header");
-    expect(() => runTool(t.h, "move_element", { name: "Shop", parent: "Shop.Window" })).toThrow(/itself/);
-    const del = run(t.h, "delete_elements", { names: ["Shop.Window"] });
+    await run(t.h, "move_element", { name: "Shop.Balance", parent: "Shop.Header", index: 0 });
+    expect((await run(t.h, "get_project", {})).elements.find((e: { name: string }) => e.name === "Shop.Balance").parent).toBe("Shop.Header");
+    await expect(runTool(t.h, "move_element", { name: "Shop", parent: "Shop.Window" })).rejects.toThrow(/itself/);
+    const del = await run(t.h, "delete_elements", { names: ["Shop.Window"] });
     expect(del.removed.length).toBeGreaterThan(10);
-    run(t.h, "replace_project", { elements: [], layer: "Hud" });
+    await run(t.h, "replace_project", { elements: [], layer: "Hud" });
     expect(t.get().layer).toBe("Hud");
-    expect(runTool(t.h, "export_code", { format: "csharp" })).toContain("CuiElementContainer");
+    expect((await runTool(t.h, "export_code", { format: "csharp" })).text).toContain("CuiElementContainer");
   });
 });

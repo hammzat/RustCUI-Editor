@@ -320,6 +320,7 @@ export function Canvas() {
         >
           <div
             ref={contentRef}
+            data-stage
             className={clsx("absolute top-0 left-0 overflow-hidden", bg?.className)}
             style={{
               ...stageStyle,
@@ -357,6 +358,7 @@ export function Canvas() {
             ))}
             {view.grid && (
               <div
+                data-editor-only
                 className="pointer-events-none absolute inset-0"
                 style={{
                   backgroundImage:

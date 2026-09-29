@@ -15,7 +15,7 @@ export function HudMock({ screen }: { screen: Box }) {
   const gap = 4;
   const beltW = slot * 6 + gap * 5;
   return (
-    <div className="pointer-events-none absolute inset-0 opacity-70" style={{ fontFamily: "var(--cui-font-bold)" }}>
+    <div data-hud className="pointer-events-none absolute inset-0 opacity-70" style={{ fontFamily: "var(--cui-font-bold)" }}>
       <div className="absolute flex flex-col-reverse gap-[3px]" style={{ right: 16, bottom: 16, width: 184 }}>
         {bars.map(({ icon: Icon, fill, color, value }, i) => (
           <div key={i} className="relative flex h-[22px] items-center bg-black/35">

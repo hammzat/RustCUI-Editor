@@ -431,6 +431,7 @@ function summarize(name: string, input: unknown): string {
 
 const TOOL_LABELS: Record<string, string> = {
   get_project: "Read project",
+  get_screenshot: "Look at canvas",
   add_elements: "Add",
   update_element: "Update",
   delete_elements: "Delete",
@@ -443,6 +444,10 @@ const TOOL_LABELS: Record<string, string> = {
 function ToolChip({ name, input, result }: { name: string; input: unknown; result?: BetaToolResultBlockParam }) {
   const [open, setOpen] = useState(false);
   const status = !result ? "pending" : result.is_error ? "error" : "ok";
+  const shot =
+    Array.isArray(result?.content) &&
+    result.content.find((c): c is Extract<typeof c, { type: "image" }> => c.type === "image");
+  const shotSrc = shot && shot.source.type === "base64" ? `data:${shot.source.media_type};base64,${shot.source.data}` : null;
   const resultText =
     typeof result?.content === "string"
       ? result.content
@@ -462,6 +467,10 @@ function ToolChip({ name, input, result }: { name: string; input: unknown; resul
         <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-faint">{summarize(name, input)}</span>
         <ChevronRight className={clsx("size-3 shrink-0 text-faint transition", open && "rotate-90")} />
       </button>
+      {shotSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={shotSrc} alt="Canvas screenshot" className="mx-2.5 mb-2 w-[calc(100%-20px)] rounded-md ring-1 ring-line" />
+      )}
       {open && (
         <div className="space-y-1.5 border-t border-line p-2">
           <pre className="max-h-48 overflow-auto rounded bg-black/40 p-2 font-mono text-[10.5px] text-fg/75">

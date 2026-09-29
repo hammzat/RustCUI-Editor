@@ -118,16 +118,27 @@ export async function runAgent(messages: BetaMessageParam[], opts: AgentOptions,
       abandon("The response hit the token limit while writing a tool call. Ask for a smaller change.");
     }
 
-    const results: BetaToolResultBlockParam[] = toolUses.map((tu) => {
+    // Sequentially: edits depend on each other. All results go back in one user message.
+    const results: BetaToolResultBlockParam[] = [];
+    for (const tu of toolUses) {
       try {
-        const content = runTool(opts.host, tu.name, tu.input);
+        const out = await runTool(opts.host, tu.name, tu.input);
         cb.onToolRun?.(tu.name, true);
-        return { type: "tool_result", tool_use_id: tu.id, content };
+        results.push({
+          type: "tool_result",
+          tool_use_id: tu.id,
+          content: out.image
+            ? [
+                { type: "image", source: { type: "base64", media_type: out.image.mediaType, data: out.image.data } },
+                { type: "text", text: out.text },
+              ]
+            : out.text,
+        });
       } catch (e) {
         cb.onToolRun?.(tu.name, false);
-        return { type: "tool_result", tool_use_id: tu.id, is_error: true, content: (e as Error).message };
+        results.push({ type: "tool_result", tool_use_id: tu.id, is_error: true, content: (e as Error).message });
       }
-    });
+    }
     messages.push({ role: "user", content: results });
     cb.onUpdate(messages, null);
   }

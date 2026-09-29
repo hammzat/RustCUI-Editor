@@ -16,8 +16,21 @@ export const AI_INSTRUCTIONS: string = defs.instructions;
 export const TOOL_DEFS = defs.tools as { name: string; description: string; input_schema: Record<string, unknown> }[];
 export type ToolName = (typeof defs.tools)[number]["name"];
 
+export interface ToolImage {
+  data: string; // base64
+  mediaType: "image/jpeg" | "image/png";
+}
+
+/** Tool result: text for the model, optionally with an image. */
+export interface ToolOutput {
+  text: string;
+  image?: ToolImage;
+}
+
 /** Bridge between tool calls and the editor state. */
 export interface EditorHost {
+  /** Render the canvas; absent where there is no DOM (tests). */
+  screenshot?(opts: { hideHud?: boolean }): Promise<ToolImage>;
   getProject(): Project;
   /** Apply a new project as one undo step. */
   commit(project: Project, label: string): void;
@@ -28,13 +41,23 @@ export interface EditorHost {
 
 type Input = Record<string, unknown>;
 
+/**
+ * Run one tool call against the editor.
+ * Rejects with a model-readable Error message when the input is invalid.
+ */
+export async function runTool(host: EditorHost, name: string, rawInput: unknown): Promise<ToolOutput> {
+  if (name === "get_screenshot") {
+    if (!host.screenshot) throw new Error("Screenshots are not available in this environment");
+    const input = (rawInput ?? {}) as Input;
+    const image = await host.screenshot({ hideHud: input.hideHud === true });
+    return { text: "Screenshot of the 1280x720 reference screen.", image };
+  }
+  return { text: runSync(host, name, rawInput) };
+}
+
 const ok = (data: unknown) => JSON.stringify(data);
 
-/**
- * Run one tool call against the editor. Returns the tool result text.
- * Throws an Error with a model-readable message when the input is invalid.
- */
-export function runTool(host: EditorHost, name: string, rawInput: unknown): string {
+function runSync(host: EditorHost, name: string, rawInput: unknown): string {
   if (!rawInput || typeof rawInput !== "object" || Array.isArray(rawInput)) {
     throw new Error("Tool input must be a JSON object");
   }

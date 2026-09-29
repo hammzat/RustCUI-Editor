@@ -40,7 +40,22 @@ Then open the editor and turn on **AI → MCP bridge**. The server forwards tool
 from localhost pages and from the origins listed in `RUSTCUI_ALLOWED_ORIGINS` (comma-separated; default
 `https://hammzat.github.io`).
 
-Tools: `get_project`, `add_elements`, `update_element`, `delete_elements`, `move_element`, `replace_project`,
+**claude.ai connector (remote MCP).** claude.ai connects to a public server, so the repo ships a small relay
+(`mcp/relay.mjs`). claude.ai calls it over Streamable HTTP at `/mcp/<token>`, and the editor tab connects to
+`/bridge/<token>` over WebSocket. The random pairing token is generated in the editor and is the only credential, so keep
+the connector URL private and serve the relay over HTTPS.
+
+```bash
+npm run relay                                        # listens on :8787
+npx cloudflared tunnel --url http://localhost:8787   # quick public HTTPS URL, or deploy it:
+docker build -f mcp/Dockerfile -t rustcui-relay . && docker run -p 8787:8787 rustcui-relay
+```
+
+In the editor, go to **AI → MCP bridge → Remote**, paste the relay URL, enable the bridge and copy the **Connector URL**.
+In claude.ai, go to **Settings → Connectors → Add custom connector** and paste it. **New pairing token** invalidates the
+old URL.
+
+Tools: `get_project`, `get_screenshot` (Claude sees the rendered canvas and can fix the layout itself), `add_elements`, `update_element`, `delete_elements`, `move_element`, `replace_project`,
 `select_element`, `export_code`. They accept native `CuiHelper.AddUi` JSON. Tool definitions live in
 `src/lib/ai/tools.json`, and the in-app assistant and the MCP server share them.
 
@@ -76,7 +91,9 @@ src/lib/cui/             Framework-free core
   factory.ts             Element presets and templates
   ops.ts                 Name-based edit operations used by AI tools
 src/lib/ai/              Tool definitions, executor, Claude agent loop, MCP bridge client
-mcp/rustcui-mcp.mjs      MCP stdio server ↔ WebSocket bridge to the editor
+mcp/core.mjs             Shared MCP server factory + editor link
+mcp/rustcui-mcp.mjs      Local MCP stdio server ↔ WebSocket bridge to the editor
+mcp/relay.mjs            Remote MCP relay for claude.ai connectors (+ mcp/Dockerfile)
 src/store/               Zustand stores (document + history, transient UI)
 src/components/editor/   Canvas, element tree, inspector, dialogs
 tests/                   Vitest suites

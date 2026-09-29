@@ -11,12 +11,14 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "mcp": "node mcp/rustcui-mcp.mjs"
+    "mcp": "node mcp/rustcui-mcp.mjs",
+    "relay": "node mcp/relay.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.13",
     "immer": "^11.1.18",
     "lucide-react": "^1.48.0",
     "next": "^16.3.6",
