@@ -1,0 +1,238 @@
+{
+  "instructions": "You control RustCUI Editor, a visual editor for Rust (the game) CUI interfaces used by Oxide/uMod and Carbon plugins. The document is the JSON array passed to CuiHelper.AddUi: each element has a unique `name`, a `parent` (another element's name, or a layer for top-level elements: Overall, Overlay, Hud.Menu, Hud, Under) and `components`.\n\nCoordinates: every element has a RectTransform with `anchormin`/`anchormax` (fractions of the parent, \"x y\") and `offsetmin`/`offsetmax` (pixels added to the anchor points, \"x y\"). The origin is the BOTTOM-LEFT corner and Y points UP. Offsets are measured in Rust's 1280x720 reference space (a 1920x1080 design is scaled by 2/3). Stretch to the parent with anchors 0 0 / 1 1; fixed-size boxes use equal anchors (e.g. 0.5 0.5) with offsets -w/2 -h/2 / w/2 h/2.\n\nComponents (JSON keys exactly as Rust expects): UnityEngine.UI.Image {color, sprite, material, imagetype, png, itemid, skinid, fadeIn}; UnityEngine.UI.RawImage {color, url, png, steamid, sprite, material, fadeIn}; UnityEngine.UI.Text {text, fontSize, font, align, color, verticalOverflow, fadeIn}; UnityEngine.UI.Button {command, close, color, sprite, material, imagetype, fadeIn}; UnityEngine.UI.Outline {color, distance, useGraphicAlpha}; UnityEngine.UI.InputField {text, command, fontSize, font, align, color, characterLimit, lineType, password, readOnly, needsKeyboard, autofocus}; Countdown {startTime, endTime, step, command, destroyIfDone}; NeedsCursor; NeedsKeyboard. Colors are \"r g b a\" with 0..1 floats. Fonts: RobotoCondensed-Bold.ttf, RobotoCondensed-Regular.ttf, DroidSansMono.ttf, PermanentMarker.ttf. align: UpperLeft..LowerRight (e.g. MiddleCenter). Text supports <b>, <i>, <color=#hex>, <size=N>.\n\nRules: only one graphic component (Image, RawImage, Text, Button, InputField) per element — put button labels in a child Text element that stretches over the button. Clickable UIs need a NeedsCursor component on the root. Name children \"Parent.Child\". Useful sprites: assets/content/ui/ui.background.tile.psd, assets/content/ui/ui.background.transparent.radial.psd, assets/content/ui/ui.background.transparent.linear.psd, assets/icons/close.png. Blur materials: assets/content/ui/uibackgroundblur.mat, assets/content/ui/uibackgroundblur-ingamemenu.mat.\n\nWorkflow: call get_project first to learn the current state, then prefer small targeted edits (add_elements, update_element, move_element, delete_elements) over replace_project. Every tool call is one undo step for the user. After building or changing layout, call get_screenshot to look at the result and fix overlaps, clipped text or misalignment. Finish by checking the `problems` list returned by get_project.",
+  "tools": [
+    {
+      "name": "get_project",
+      "description": "Return the current UI document: project name, layer, screen size, selected element, every element in CuiHelper.AddUi JSON form, the resolved box of every element and validation problems. Call this before editing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_screenshot",
+      "description": "Render the editor canvas (1280x720 reference screen with the current background, optional vanilla HUD overlay and all visible elements) to an image, so you can visually verify the layout.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "hideHud": {
+            "type": "boolean",
+            "description": "Hide the vanilla HUD silhouette overlay"
+          }
+        }
+      }
+    },
+    {
+      "name": "add_elements",
+      "description": "Add new elements in CuiHelper.AddUi JSON format. Parents must come before children in the array. `parent` may be a layer (for top-level elements) or the name of any existing or newly added element. Names must be unique.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "array",
+            "description": "CUI elements, e.g. {\"name\":\"Menu\",\"parent\":\"Overlay\",\"components\":[{\"type\":\"UnityEngine.UI.Image\",\"color\":\"0 0 0 0.8\"},{\"type\":\"RectTransform\",\"anchormin\":\"0.5 0.5\",\"anchormax\":\"0.5 0.5\",\"offsetmin\":\"-200 -150\",\"offsetmax\":\"200 150\"}]}",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "type": "string"
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "fadeOut": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name",
+                "parent",
+                "components"
+              ]
+            }
+          }
+        },
+        "required": [
+          "elements"
+        ]
+      }
+    },
+    {
+      "name": "update_element",
+      "description": "Change an existing element. `rect` accepts any of anchormin/anchormax/offsetmin/offsetmax (\"x y\" strings). `components` are merged by type: listed JSON keys overwrite, missing components are added. `removeComponents` lists component types to delete. `rename` also renames descendants that follow the Parent.Child convention.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string"
+          },
+          "rect": {
+            "type": "object",
+            "properties": {
+              "anchormin": {
+                "type": "string"
+              },
+              "anchormax": {
+                "type": "string"
+              },
+              "offsetmin": {
+                "type": "string"
+              },
+              "offsetmax": {
+                "type": "string"
+              }
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "removeComponents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fadeOut": {
+            "type": "number"
+          },
+          "destroyUi": {
+            "type": "string"
+          },
+          "update": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "delete_elements",
+      "description": "Delete elements (and all their children) by name.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "names"
+        ]
+      }
+    },
+    {
+      "name": "move_element",
+      "description": "Reparent and/or reorder an element. `parent` is another element's name, or null / a layer name to make it top-level. `index` is the position among siblings (later = drawn on top). The RectTransform is kept as-is (relative to the new parent).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "parent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "parent"
+        ]
+      }
+    },
+    {
+      "name": "replace_project",
+      "description": "Replace the whole document with the given CuiHelper.AddUi JSON elements. Use for building a UI from scratch or importing; prefer targeted edits otherwise.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional project name"
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "Overall",
+              "Overlay",
+              "Hud.Menu",
+              "Hud",
+              "Under"
+            ]
+          }
+        },
+        "required": [
+          "elements"
+        ]
+      }
+    },
+    {
+      "name": "select_element",
+      "description": "Select an element in the editor so the user sees it highlighted (null to clear).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "export_code",
+      "description": "Return the final output: `json` (for CuiHelper.AddUi) or `csharp` (Oxide/Carbon CuiElementContainer code; set plugin=true for a full plugin skeleton).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "csharp"
+            ]
+          },
+          "plugin": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "format"
+        ]
+      }
+    }
+  ]
+}

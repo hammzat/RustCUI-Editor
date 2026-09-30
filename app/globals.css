@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0c0e;
+  --color-panel: #111317;
+  --color-panel-2: #171a1f;
+  --color-panel-3: #1e2229;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+  --color-fg: #ebe8e3;
+  --color-muted: #8d9199;
+  --color-faint: #5d626b;
+  --color-rust: #ce422b;
+  --color-rust-hi: #e8583d;
+  --color-amber: #ffc861;
+  --color-sky: #5fb3ff;
+  --color-good: #8fd14f;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+
+  --animate-pop: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-fade: fade 160ms ease-out;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+:root {
+  color-scheme: dark;
+  --cui-font-bold: var(--font-roboto-condensed), "Roboto Condensed", sans-serif;
+  --cui-font-mono: var(--font-droid-mono), "Droid Sans Mono", monospace;
+  --cui-font-marker: var(--font-marker), "Permanent Marker", cursive;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+
+::selection {
+  background: rgb(206 66 43 / 0.45);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="range"] {
+  accent-color: var(--color-rust);
+}
+
+.checker {
+  background-color: #2a2d33;
+  background-image:
+    linear-gradient(45deg, #34383f 25%, transparent 25%), linear-gradient(-45deg, #34383f 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #34383f 75%), linear-gradient(-45deg, transparent 75%, #34383f 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
